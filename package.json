@@ -1,0 +1,23 @@
+{
+  "name": "reaction-diffusion",
+  "version": "1.0.0",
+  "description": "Grow Turing patterns (spots, stripes, coral, worms, waves) from the Gray-Scott model in real time, tune the feed and kill rates, paint with chemicals, and download the pattern.",
+  "repository": "github:evoluteur/reaction-diffusion",
+  "homepage": "https://evoluteur.github.io/reaction-diffusion/",
+  "copyright": "(c) 2026 Olivier Giulieri",
+  "author": "Olivier Giulieri (https://evoluteur.github.io/)",
+  "license": "MIT",
+  "keywords": [
+    "reaction-diffusion",
+    "turing-patterns",
+    "gray-scott",
+    "morphogenesis",
+    "alan-turing",
+    "generative-art",
+    "webgl",
+    "webgl2",
+    "simulation",
+    "pattern",
+    "math"
+  ]
+}

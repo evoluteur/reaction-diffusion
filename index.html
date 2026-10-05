@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-063933E3C2"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-063933E3C2");
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reaction-Diffusion: Turing Patterns from the Gray-Scott Model</title>
+    <meta
+      name="description"
+      content="Reaction-Diffusion: grow Turing patterns (spots, stripes, coral, worms, waves) from the Gray-Scott model in real time. Tune the feed and kill rates, paint with chemicals, explore the parameter map and download the pattern."
+    />
+    <meta name="author" content="Olivier Giulieri" />
+    <link
+      rel="canonical"
+      href="https://evoluteur.github.io/reaction-diffusion/"
+    />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <meta name="theme-color" content="#1a212d" />
+    <meta property="og:site_name" content="Reaction-Diffusion" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Reaction-Diffusion" />
+    <meta
+      property="og:description"
+      content="Two chemicals, two lines of math: grow the spots of a leopard, the stripes of a zebra and the branches of coral."
+    />
+    <meta
+      property="og:url"
+      content="https://evoluteur.github.io/reaction-diffusion/"
+    />
+    <meta
+      property="og:image"
+      content="https://evoluteur.github.io/reaction-diffusion/reaction-diffusion.png"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css?family=Overpass"
+    />
+    <link id="omg-core-css" rel="stylesheet" href="css/core.css" />
+    <script>
+      // Themes (dark, light, evol-blue) are copies of omg-themes; set OMG_THEMES_BASE to link the hosted ones instead.
+      window.OMG_THEMES_BASE = ""; // or "https://evoluteur.github.io/omg-themes/" to link the hosted themes
+      window.OMG_DEFAULT_THEME = "dark";
+      (function () {
+        var t = window.OMG_DEFAULT_THEME;
+        try {
+          t = localStorage.getItem("omg-theme") || t;
+        } catch (e) {}
+        if (t !== "dark" && t !== "light" && t !== "evol-blue")
+          t = window.OMG_DEFAULT_THEME;
+        document.documentElement.setAttribute("data-theme", t);
+        // written here (not in the markup) so the saved theme loads before first paint
+        document.write(
+          '<link id="omg-theme-css" rel="stylesheet" href="' +
+            window.OMG_THEMES_BASE +
+            "css/themes/" +
+            t +
+            "/" +
+            t +
+            '.css" />',
+        );
+      })();
+    </script>
+    <link id="omg-density-css" rel="stylesheet" href="css/densities.css" />
+    <link rel="stylesheet" href="css/rd.css" />
+
+    <script src="js/omg.js"></script>
+    <script src="js/rd.js"></script>
+  </head>
+
+  <body
+    onload="
+      setupPage('home');
+      initRD();
+    "
+    id="omg-body"
+  >
+    <div id="omg-header">
+      <h1>Reaction-Diffusion</h1>
+      <div id="omg-header-tools">
+        <div id="omg-theme-picker"></div>
+        <a
+          id="omg-github"
+          href="https://github.com/evoluteur/reaction-diffusion"
+          target="_blank"
+          rel="noopener"
+          title="Reaction-Diffusion on GitHub"
+          aria-label="Reaction-Diffusion on GitHub"
+          ><svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" /></svg
+        ></a>
+      </div>
+    </div>
+    <h2>Turing patterns, grown live</h2>
+    <div class="content">
+      <div class="app-layout">
+        <div id="rd-wrap" class="art-wrap">
+          <canvas id="rd-canvas" aria-label="Reaction-diffusion simulation"></canvas>
+          <p id="rd-msg" class="rd-msg"></p>
+        </div>
+        <div class="controls">
+          <label
+            >Pattern
+            <select id="preset"></select>
+          </label>
+          <p id="preset-text" class="hint"></p>
+          <label
+            ><span>Feed <b id="feed-val"></b></span>
+            <input id="feed" type="range" step="0.0001" />
+          </label>
+          <label
+            ><span>Kill <b id="kill-val"></b></span>
+            <input id="kill" type="range" step="0.0001" />
+          </label>
+          <div class="map-box">
+            <canvas id="fk-map" aria-label="Map of feed and kill rates"></canvas>
+            <div class="map-axes"><span>kill &rarr;</span><span>&uarr; feed</span></div>
+          </div>
+          <label class="check"
+            ><input type="checkbox" id="map" /> Parameter map (all at once)</label
+          >
+          <label>Colors <select id="palette"></select></label>
+          <label class="check"
+            ><input type="checkbox" id="relief" /> Relief lighting</label
+          >
+          <label>Speed <input id="speed" type="range" min="1" max="40" /></label>
+          <label>Brush <input id="brush" type="range" min="3" max="40" /></label>
+          <p class="hint">
+            Paint on the dish to add chemical B. Shift or right-click to wipe it
+            away.
+          </p>
+          <div class="buttons">
+            <button type="button" id="btn-pause">Pause</button>
+            <button type="button" id="btn-reset" class="secondary">Reseed</button>
+            <button type="button" id="btn-clear" class="secondary">Empty</button>
+            <button type="button" id="btn-png" class="secondary">Download PNG</button>
+          </div>
+          <p class="hint">Step <span id="steps">0</span>. The address of the page keeps the pattern, to share it.</p>
+        </div>
+      </div>
+
+      <h3>Two chemicals and a recipe</h3>
+      <div class="explain">
+        <p>
+          In 1952, two years before his death, Alan Turing published
+          <em>The Chemical Basis of Morphogenesis</em>. He asked how a round,
+          uniform ball of cells could ever become a striped or spotted
+          animal, and answered with chemistry: two substances that react
+          with each other and spread at different speeds will, all by
+          themselves, break a smooth mixture into a regular pattern. The
+          fast one smooths things out, the slow one builds them up, and
+          their tug of war leaves spots or stripes at a size set by the
+          rates alone.
+        </p>
+        <p>
+          This page runs the <em>Gray-Scott</em> model, a simple version of
+          that idea from 1984. The dish holds two chemicals, A and B. A is
+          poured in everywhere at the <strong>feed</strong> rate. Where they
+          meet, two B turn one A into a third B (A + 2B &rarr; 3B), and B is
+          drained away at the <strong>kill</strong> rate. A spreads twice as
+          fast as B. Each cell of the 512 &times; 512 grid applies these rules
+          to itself and its eight neighbors, many times a second.
+        </p>
+        <p class="formula">
+          A&prime; = A + D<sub>A</sub>&nbsp;&nabla;&sup2;A &minus; AB&sup2; + f&thinsp;(1 &minus; A)<br />
+          B&prime; = B + D<sub>B</sub>&nbsp;&nabla;&sup2;B + AB&sup2; &minus; (k + f)&thinsp;B
+        </p>
+        <p>
+          In 1993 John Pearson mapped what the model does for every feed and
+          kill, and named the patterns he found with Greek letters. Most of
+          the map is dull: B dies out, or fills everything. The life is in a
+          thin, curved band, where small steps of the sliders turn spots
+          into stripes into coral. Tick <em>Parameter map</em> to see the
+          whole band at once, with feed rising from bottom to top and kill
+          growing from left to right.
+        </p>
+        <p>
+          Turing could not prove that animals really work this way, and for
+          decades no one could. Since then, reaction-diffusion has been
+          found at work in the stripes of zebrafish, the spacing of hair
+          follicles and feathers, the ridges of the palate and the digits of
+          the hand.
+        </p>
+      </div>
+
+      <div class="footer">
+        <p>
+          Reaction-Diffusion is open source on
+          <a href="https://github.com/evoluteur/reaction-diffusion">GitHub</a>
+          with an MIT license.
+        </p>
+        <p>
+          Had fun browsing the app?
+          <a href="https://github.com/sponsors/evoluteur"
+            >Buy me a coffee by becoming a sponsor</a
+          >.
+        </p>
+        <p>
+          You may also enjoy
+          <a href="https://evoluteur.github.io/cymatics/">Cymatics</a>,
+          <a href="https://evoluteur.github.io/infinite-coastlines/">Infinite Coastlines</a>
+          and
+          <a href="https://evoluteur.github.io/sunflower-golden-angle/">Sunflower Golden Angle</a>.
+          See them all on
+          <a href="https://evoluteur.github.io/esoterica.html">Esoterica</a>.
+        </p>
+        <p class="copyright">
+          &#169; 2026
+          <a href="https://evoluteur.github.io/">Olivier Giulieri</a>
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
