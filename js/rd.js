@@ -48,9 +48,17 @@ const state = {
   map: false, // parameter map: f varies along y and k along x
   paused: false,
   steps: 0,
+  settled: false, // nothing has moved for a while: stop computing
+  faded: false, // and nothing is left
 };
 
-let gl, canvas, progSim, progDraw, progBrush;
+let gl, canvas, progSim, progDraw, progBrush, progProbe;
+let probeTex, probeFbo;
+const PROBE = 64; // the dish is sampled on a 64 x 64 grid to tell if it still moves
+const CHECK_EVERY = 600; // steps between two looks
+const STILL = 0.1; // largest change of the shown color level between two looks, for "nothing moves visibly"
+const STILL_LOOKS = 3; // looks in a row
+let lastProbe = null, lastCheck = 0, stillCount = 0;
 let tex = [], fbo = [], cur = 0, quad;
 let strokeSeed = 0; // changes with each stroke, so the speckles differ
 let pointer = null; // {x, y, erase} in simulation cells while painting
@@ -158,6 +166,18 @@ void main() {
   outColor = vec4(col, 1.0);
 }`;
 
+// B at the center of each probe cell (the dish is read at 64 x 64 points),
+// as the color level it is drawn with (see level() in FS_DRAW)
+const FS_PROBE = `#version 300 es
+precision highp float;
+in vec2 uv;
+out vec4 outColor;
+uniform sampler2D state;
+void main() {
+  float b = texture(state, uv).g;
+  outColor = vec4(clamp(b * 2.6, 0.0, 1.0), b, 0.0, 1.0);
+}`;
+
 // ------------------------------------------------------------ WebGL setup
 
 const compile = (type, src) => {
@@ -210,6 +230,7 @@ const initGL = () => {
   progSim = program(FS_SIM);
   progDraw = program(FS_DRAW);
   progBrush = program(FS_BRUSH);
+  progProbe = program(FS_PROBE);
   quad = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, quad);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
@@ -224,7 +245,65 @@ const initGL = () => {
   if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
     return false;
   }
+  probeTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, probeTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, PROBE, PROBE, 0, gl.RGBA, gl.FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  probeFbo = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, probeFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, probeTex, 0);
   return true;
+};
+
+// read B at the probe points
+const probe = () => {
+  gl.useProgram(progProbe);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, probeFbo);
+  gl.viewport(0, 0, PROBE, PROBE);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, tex[cur]);
+  gl.uniform1i(progProbe.u.state, 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  const out = new Float32Array(PROBE * PROBE * 4);
+  gl.readPixels(0, 0, PROBE, PROBE, gl.RGBA, gl.FLOAT, out);
+  const level = new Float32Array(PROBE * PROBE);
+  let most = 0; // the most B anywhere, to tell when it has died out
+  for (let i = 0; i < level.length; i++) {
+    level[i] = out[i * 4];
+    most = Math.max(most, out[i * 4 + 1]);
+  }
+  return { level, most };
+};
+
+// has the dish stopped changing, as far as the eye can tell? Holes, spots and
+// mitosis go still; coral and labyrinths mostly do, though a stray defect may
+// still creep; waves, chaos and worms never do; and a dish where B died out is
+// still too
+const checkSettled = () => {
+  lastCheck = state.steps;
+  const p = probe();
+  if (lastProbe) {
+    let change = 0;
+    for (let i = 0; i < p.level.length; i++) change = Math.max(change, Math.abs(p.level[i] - lastProbe.level[i]));
+    stillCount = change < STILL ? stillCount + 1 : 0;
+    if (stillCount >= STILL_LOOKS) {
+      state.settled = true;
+      state.faded = p.most < 0.02;
+      lastShown = -1;
+    }
+  }
+  lastProbe = p;
+};
+
+// something changed: compute again
+const wake = () => {
+  if (state.settled) lastShown = -1;
+  state.settled = false;
+  state.faded = false;
+  lastProbe = null;
+  stillCount = 0;
+  lastCheck = state.steps;
 };
 
 // one pass of a full-screen shader, reading the current state, writing the other buffer
@@ -297,18 +376,29 @@ const seed = (how = "drops") => {
       }
     }
   };
-  if (how === "center") {
-    dot(SIM / 2, SIM / 2, 14);
-  } else if (how === "ring") {
-    for (let a = 0; a < Math.PI * 2; a += 0.03) {
-      dot(SIM / 2 + Math.cos(a) * SIM * 0.3, SIM / 2 + Math.sin(a) * SIM * 0.3, 3);
-    }
-  } else if (how === "noise") {
+  if (how === "noise") {
     for (let n = 0; n < 900; n++) dot(Math.random() * SIM, Math.random() * SIM, 2);
   } else if (how !== "none") {
-    const n = 14 + Math.floor(Math.random() * 10);
-    for (let i = 0; i < n; i++) {
-      dot(Math.random() * SIM, Math.random() * SIM, 4 + Math.random() * 8);
+    // patches of small speckles (3 x 3 cells, 15% of them): a large solid
+    // blot can die out in some regimes (waves, spots), small seeds always grow
+    const cell = 3;
+    const cells = Math.ceil(SIM / cell);
+    const speck = new Uint8Array(cells * cells).map(() => (Math.random() < 0.15 ? 1 : 0));
+    const n = 8 + Math.floor(Math.random() * 6);
+    for (let d = 0; d < n; d++) {
+      const cx = Math.random() * SIM, cy = Math.random() * SIM;
+      const r = 20 + Math.random() * 40;
+      for (let y = -r; y <= r; y++) {
+        for (let x = -r; x <= r; x++) {
+          if (x * x + y * y > r * r) continue;
+          const px = (Math.round(cx + x) + SIM) % SIM;
+          const py = (Math.round(cy + y) + SIM) % SIM;
+          if (!speck[Math.floor(py / cell) * cells + Math.floor(px / cell)]) continue;
+          const i = (py * SIM + px) * 4;
+          data[i] = 0.5;
+          data[i + 1] = 0.5;
+        }
+      }
     }
   }
   for (let i = 0; i < 2; i++) {
@@ -316,6 +406,7 @@ const seed = (how = "drops") => {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, SIM, SIM, 0, gl.RGBA, gl.FLOAT, data);
   }
   state.steps = 0;
+  wake();
 };
 
 // ------------------------------------------------------------ the loop
@@ -327,8 +418,9 @@ const loop = () => {
     pts.slice(-60).forEach((p) => brush(p.x, p.y, pointer.erase));
     pointer.trail = [];
   }
-  if (!state.paused) {
+  if (!state.paused && !state.settled) {
     for (let i = 0; i < state.speed; i++) step();
+    if (state.steps - lastCheck >= CHECK_EVERY) checkSettled();
   }
   draw();
   updateStepCount();
@@ -339,8 +431,14 @@ let lastShown = -1;
 const updateStepCount = () => {
   if (state.steps === lastShown) return;
   lastShown = state.steps;
-  const el = document.getElementById("steps");
-  if (el) el.textContent = state.steps.toLocaleString();
+  const el = document.getElementById("step-info");
+  if (!el) return;
+  const n = state.steps.toLocaleString();
+  el.textContent = state.faded
+    ? `Faded away at step ${n}: nothing is left. Reseed or paint to start again.`
+    : state.settled
+      ? `Settled at step ${n}: nothing moves anymore.`
+      : `Step ${n}.`;
 };
 
 // ------------------------------------------------------------ painting
@@ -359,6 +457,7 @@ const setupPainting = () => {
     const c = toCell(e);
     strokeSeed = Math.random() * 1000;
     pointer = { ...c, trail: [c], erase: e.button === 2 || e.shiftKey };
+    wake();
     e.preventDefault();
   });
   canvas.addEventListener("pointermove", (e) => {
@@ -507,6 +606,7 @@ const showRates = () => {
 };
 
 const setRates = (f, k) => {
+  wake();
   state.f = f;
   state.k = k;
   const p = presets.find((p) => Math.abs(p.f - f) < 1e-6 && Math.abs(p.k - k) < 1e-6);
@@ -517,6 +617,7 @@ const setRates = (f, k) => {
 const setPreset = (id, reseed = true) => {
   const p = presets.find((p) => p.id === id);
   if (!p) return;
+  wake();
   state.preset = p.id;
   state.f = p.f;
   state.k = p.k;
@@ -524,7 +625,7 @@ const setPreset = (id, reseed = true) => {
     state.map = false;
     $("map").checked = false;
   }
-  if (reseed) seed(p.id === "uskate" || p.id === "waves" ? "center" : "drops");
+  if (reseed) seed("drops");
   showRates();
 };
 
@@ -597,6 +698,7 @@ const setupControls = () => {
   $("brush").addEventListener("input", (e) => (state.brush = parseInt(e.target.value, 10)));
   $("relief").addEventListener("change", (e) => (state.relief = e.target.checked));
   $("map").addEventListener("change", (e) => {
+    wake();
     state.map = e.target.checked;
     seed("noise");
     showRates();
