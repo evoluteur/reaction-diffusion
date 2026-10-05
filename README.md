@@ -16,6 +16,67 @@ Turing patterns, grown live: two chemicals and two lines of math make the spots 
 - **Speed**, **Pause** (or the space bar), **Reseed**, **Empty**, and **Download PNG**.
 - The address of the page keeps the pattern and colors, to share it.
 
+## The patterns
+
+The ten named patterns, after a few thousand steps (click one to grow it live):
+
+<table>
+  <tr valign="top">
+    <td align="center">
+      <a href="https://evoluteur.github.io/reaction-diffusion/#p=coral"><img src="img/coral.png" width="150" alt="Coral" /></a><br />
+      <b>Coral</b><br />
+      <sub>feed 0.0545 · kill 0.062</sub>
+    </td>
+    <td align="center">
+      <a href="https://evoluteur.github.io/reaction-diffusion/#p=mitosis"><img src="img/mitosis.png" width="150" alt="Mitosis" /></a><br />
+      <b>Mitosis</b><br />
+      <sub>feed 0.0367 · kill 0.0649</sub>
+    </td>
+    <td align="center">
+      <a href="https://evoluteur.github.io/reaction-diffusion/#p=spots"><img src="img/spots.png" width="150" alt="Spots" /></a><br />
+      <b>Spots</b><br />
+      <sub>feed 0.03 · kill 0.062</sub>
+    </td>
+    <td align="center">
+      <a href="https://evoluteur.github.io/reaction-diffusion/#p=stripes"><img src="img/stripes.png" width="150" alt="Labyrinth" /></a><br />
+      <b>Labyrinth</b><br />
+      <sub>feed 0.029 · kill 0.057</sub>
+    </td>
+    <td align="center">
+      <a href="https://evoluteur.github.io/reaction-diffusion/#p=fingerprint"><img src="img/fingerprint.png" width="150" alt="Fingerprint" /></a><br />
+      <b>Fingerprint</b><br />
+      <sub>feed 0.037 · kill 0.06</sub>
+    </td>
+  </tr>
+  <tr valign="top">
+    <td align="center">
+      <a href="https://evoluteur.github.io/reaction-diffusion/#p=worms"><img src="img/worms.png" width="150" alt="Worms" /></a><br />
+      <b>Worms</b><br />
+      <sub>feed 0.078 · kill 0.061</sub>
+    </td>
+    <td align="center">
+      <a href="https://evoluteur.github.io/reaction-diffusion/#p=holes"><img src="img/holes.png" width="150" alt="Holes" /></a><br />
+      <b>Holes</b><br />
+      <sub>feed 0.039 · kill 0.058</sub>
+    </td>
+    <td align="center">
+      <a href="https://evoluteur.github.io/reaction-diffusion/#p=waves"><img src="img/waves.png" width="150" alt="Waves" /></a><br />
+      <b>Waves</b><br />
+      <sub>feed 0.014 · kill 0.054</sub>
+    </td>
+    <td align="center">
+      <a href="https://evoluteur.github.io/reaction-diffusion/#p=chaos"><img src="img/chaos.png" width="150" alt="Chaos" /></a><br />
+      <b>Chaos</b><br />
+      <sub>feed 0.026 · kill 0.051</sub>
+    </td>
+    <td align="center">
+      <a href="https://evoluteur.github.io/reaction-diffusion/#p=uskate"><img src="img/uskate.png" width="150" alt="U-skate" /></a><br />
+      <b>U-skate</b><br />
+      <sub>feed 0.062 · kill 0.0609</sub>
+    </td>
+  </tr>
+</table>
+
 ## How it is built
 
 The dish is a 512 × 512 grid, wrapped at the edges, kept in two floating-point textures on the GPU (WebGL 2). Each frame, a fragment shader applies the Gray-Scott update to every cell several times over, reading the cell's eight neighbors for the diffusion (a 3 × 3 Laplacian with weights 0.2 to the sides and 0.05 to the corners), with diffusion rates of 1 for A and 0.5 for B:
@@ -37,6 +98,6 @@ Reaction-Diffusion is open source at [GitHub](https://github.com/evoluteur/react
 
 Had fun browsing the app? [Buy me a coffee by becoming a sponsor](https://github.com/sponsors/evoluteur).
 
-You may also be interested in my other projects [Cymatics](https://github.com/evoluteur/cymatics) ([demo](https://evoluteur.github.io/cymatics/)), [Infinite-Coastlines](https://github.com/evoluteur/infinite-coastlines) ([demo](https://evoluteur.github.io/infinite-coastlines/)) and [Sunflower-Golden-Angle](https://github.com/evoluteur/sunflower-golden-angle) ([demo](https://evoluteur.github.io/sunflower-golden-angle/)). See them all on [Esoterica](https://evoluteur.github.io/esoterica.html).
+You may also be interested in my other projects [Cymatics](https://github.com/evoluteur/cymatics) ([demo](https://evoluteur.github.io/cymatics/)), [Infinite-Coastlines](https://github.com/evoluteur/infinite-coastlines) ([demo](https://evoluteur.github.io/infinite-coastlines/)) and [Sunflower-Golden-Angle](https://github.com/evoluteur/sunflower-golden-angle) ([demo](https://evoluteur.github.io/sunflower-golden-angle/)).
 
 Copyright (c) 2026 [Olivier Giulieri](https://evoluteur.github.io/).
